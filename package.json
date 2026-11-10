@@ -1,0 +1,35 @@
+{
+  "name": "rr-coorg-holidays-backend",
+  "version": "1.0.0",
+  "description": "Production Backend API with MongoDB and Google Login for RR Coorg Holidays",
+  "main": "Index.js",
+  "scripts": {
+    "start": "node Index.js",
+    "dev": "node --watch Index.js",
+    "test": "node test/backend.test.js"
+  },
+  "keywords": [
+    "coorg",
+    "resorts",
+    "booking",
+    "mongodb",
+    "express",
+    "google-auth"
+  ],
+  "author": "RR Coorg Holidays",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^18.0.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^8.7.1",
+    "google-auth-library": "^9.15.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "multer": "^2.5.0",
+    "nodemailer": "^9.1.1",
+    "razorpay": "^2.9.8"
+  }
+}
