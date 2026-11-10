@@ -217,6 +217,23 @@ const propertySchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    // Custom GST & Tax Configuration
+    gstType: {
+      type: String,
+      enum: ["standard", "percentage", "fixed", "exempt"],
+      default: "standard"
+    },
+    gstAmount: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    gstPercentage: {
+      type: Number,
+      default: null,
+      min: 0,
+      max: 100
+    },
     isDeleted: {
       type: Boolean,
       default: false,

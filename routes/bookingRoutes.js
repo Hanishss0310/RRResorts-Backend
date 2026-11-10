@@ -576,11 +576,17 @@ router.post("/", tryAuthenticate, async (req, res) => {
       selectedMeals: body.selectedMeals || {},
       roomTotal: calculated.pricing.totalRoomCost || calculated.pricing.totalBaseRoomCost || 0,
       mealTotal: calculated.pricing.mealTotal,
-      taxes: calculated.pricing.taxes,
+      taxes: (body.taxes !== undefined && body.taxes !== null)
+        ? Number(body.taxes)
+        : ((body.gstAmount !== undefined && body.gstAmount !== null)
+          ? Number(body.gstAmount)
+          : calculated.pricing.taxes),
       cashSurcharge,
       couponCode: calculated.pricing.appliedCoupon ? calculated.pricing.appliedCoupon.code : "",
       discountAmount: calculated.pricing.discountAmount,
-      totalAmount,
+      totalAmount: (body.totalAmount !== undefined && body.totalAmount !== null && Number(body.totalAmount) > 0)
+        ? Number(body.totalAmount)
+        : totalAmount,
       paidAmount,
       pendingAmount,
       paymentStatus: initialPaymentStatus,

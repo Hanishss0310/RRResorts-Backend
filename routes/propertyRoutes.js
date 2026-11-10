@@ -207,6 +207,9 @@ router.post("/", async (req, res) => {
       extraBedAllowed: body.extraBedAllowed !== false,
       weekendPrice: Number(body.weekendPrice || 0),
       seasonalPrice: Number(body.seasonalPrice || 0),
+      gstType: body.gstType || "standard",
+      gstAmount: body.gstAmount !== undefined && body.gstAmount !== null ? Number(body.gstAmount) : 0,
+      gstPercentage: body.gstPercentage !== undefined && body.gstPercentage !== null && body.gstPercentage !== "" ? Number(body.gstPercentage) : null,
       rating: body.rating || 5.0,
       active: body.active !== undefined ? Boolean(body.active) : true,
       isPublished: body.status !== "draft" && body.status !== "unpublished",
@@ -311,6 +314,11 @@ router.put("/:id", async (req, res) => {
     if (body.extraBedAllowed !== undefined) property.extraBedAllowed = Boolean(body.extraBedAllowed);
     if (body.weekendPrice !== undefined) property.weekendPrice = Number(body.weekendPrice);
     if (body.seasonalPrice !== undefined) property.seasonalPrice = Number(body.seasonalPrice);
+    if (body.gstType !== undefined) property.gstType = body.gstType;
+    if (body.gstAmount !== undefined) property.gstAmount = Number(body.gstAmount || 0);
+    if (body.gstPercentage !== undefined) {
+      property.gstPercentage = body.gstPercentage === "" || body.gstPercentage === null ? null : Number(body.gstPercentage);
+    }
     if (body.status !== undefined) {
       property.status = body.status;
       property.isPublished = body.status === "published";

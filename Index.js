@@ -26,6 +26,7 @@ process.env.JWT_SECRET = JWT_SECRET;
 process.env.GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID;
 
 const app = express();
+app.enable("trust proxy");
 
 // =========================================================================
 // 2. SECURITY & MIDDLEWARES
@@ -45,6 +46,7 @@ app.use("/api/", apiLimiter);
 const ALLOWED_ORIGINS = [
   "https://rrresortsandvillas.in",
   "https://www.rrresortsandvillas.in",
+  "https://api.rrresortsandvillas.in",
   "https://rr-resorts-and-villas-admin.web.app",
   "https://rr-resorts-and-villas-admin.firebaseapp.com",
   "https://rr-resorts-and-villas-coorg.web.app",
@@ -114,15 +116,17 @@ app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 // Static directory for uploaded property images & assets (with cross-origin header)
-app.use(
-  "/uploads",
+const serveUploads = [
   (req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
     next();
   },
   express.static(path.join(__dirname, "uploads"))
-);
+];
+
+app.use("/uploads", serveUploads);
+app.use("/api/uploads", serveUploads);
 
 // Request logging middleware
 app.use((req, res, next) => {

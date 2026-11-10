@@ -250,10 +250,28 @@ async function calculateStayPrice({
 
   const taxableAmount = Math.max(0, subTotalBeforeDiscount - discountAmount);
 
-  // 6. GST Taxes (Under ₹7,500/night avg => 12%, ₹7,500+ => 18%)
-  const avgNightlyRate = (totalBaseRoomCost + totalExtraGuestCharges) / (nightsCount * rooms);
-  const taxRate = avgNightlyRate >= 7500 ? 0.18 : 0.12;
-  const taxes = Math.round(taxableAmount * taxRate);
+  // 6. GST Taxes (Configured custom GST Amount or Percentage, otherwise standard government slab)
+  let taxRate = 0.12;
+  let taxes = 0;
+
+  if (property.gstType === "fixed" && property.gstAmount !== undefined && property.gstAmount !== null && Number(property.gstAmount) >= 0) {
+    taxes = Math.round(Number(property.gstAmount));
+    taxRate = taxableAmount > 0 ? (taxes / taxableAmount) : 0;
+  } else if (property.gstAmount !== undefined && property.gstAmount !== null && Number(property.gstAmount) > 0) {
+    taxes = Math.round(Number(property.gstAmount));
+    taxRate = taxableAmount > 0 ? (taxes / taxableAmount) : 0;
+  } else if (property.gstPercentage !== undefined && property.gstPercentage !== null && !isNaN(property.gstPercentage)) {
+    taxRate = Number(property.gstPercentage) / 100;
+    taxes = Math.round(taxableAmount * taxRate);
+  } else if (property.gstType === "exempt") {
+    taxRate = 0;
+    taxes = 0;
+  } else {
+    // Standard Slab (Under ₹7,500/night avg => 12%, ₹7,500+ => 18%)
+    const avgNightlyRate = (totalBaseRoomCost + totalExtraGuestCharges) / (nightsCount * rooms);
+    taxRate = avgNightlyRate >= 7500 ? 0.18 : 0.12;
+    taxes = Math.round(taxableAmount * taxRate);
+  }
 
   // 7. Online Standard Total
   const onlineTotal = taxableAmount + taxes;

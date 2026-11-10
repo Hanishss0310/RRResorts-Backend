@@ -12,15 +12,23 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Allowed MIME types
-const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/jpg",
+  "image/gif",
+  "image/svg+xml"
+];
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
+    const ext = path.extname(file.originalname).toLowerCase() || ".jpg";
     const safeBaseName = path
       .basename(file.originalname, ext)
       .replace(/[^a-zA-Z0-9_-]/g, "_")
@@ -31,10 +39,10 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+  if (ALLOWED_MIME_TYPES.includes(file.mimetype.toLowerCase()) || file.mimetype.startsWith("image/")) {
     cb(null, true);
   } else {
-    cb(new Error("Invalid file format. Only JPEG, PNG, and WebP images are permitted."), false);
+    cb(new Error("Invalid file format. Only image files (JPEG, PNG, WebP, AVIF, GIF) are permitted."), false);
   }
 };
 
@@ -44,77 +52,45 @@ const upload = multer({
   fileFilter
 });
 
-// POST /api/upload - Single image or screenshot upload
-router.post("/", (req, res) => {
-  upload.single("image")(req, res, (err) => {
-    if (err) {
-      // Try with 'screenshot' field
-      return upload.single("screenshot")(req, res, (err2) => {
-        if (err2) {
-          return upload.single("file")(req, res, (err3) => {
-            if (err3) {
-              return res.status(400).json({ success: false, message: err3.message || "Upload error" });
-            }
-            return handleUploadedFile(req, res);
-          });
-        }
-        return handleUploadedFile(req, res);
-      });
-    }
-    return handleUploadedFile(req, res);
-  });
-});
-
-function handleUploadedFile(req, res) {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file provided." });
-    }
-
-    const host = req.get("host");
-    const protocol = req.protocol;
-    const fileUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-
-    return res.status(200).json({
-      success: true,
-      message: "File uploaded successfully",
-      url: fileUrl,
-      filename: req.file.filename,
-      size: req.file.size,
-      mimetype: req.file.mimetype
-    });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message || "Upload failed" });
-  }
+function getBaseUrl(req) {
+  const host = req.get("host") || "localhost:5002";
+  const isHttps =
+    req.secure ||
+    req.headers["x-forwarded-proto"] === "https" ||
+    host.includes("rrresortsandvillas.in") ||
+    host.includes("web.app");
+  const protocol = isHttps ? "https" : req.protocol;
+  return `${protocol}://${host}`;
 }
 
-// POST /api/upload/screenshot - Explicit endpoint for payment screenshots
-router.post("/screenshot", (req, res) => {
-  upload.single("screenshot")(req, res, (err) => {
+// POST /api/upload - Single or Multiple image upload directly from computer
+router.post("/", (req, res) => {
+  upload.any()(req, res, (err) => {
     if (err) {
-      return upload.single("image")(req, res, (err2) => {
-        if (err2) {
-          return res.status(400).json({ success: false, message: err2.message || "Screenshot upload failed" });
-        }
-        return handleUploadedFile(req, res);
+      return res.status(400).json({ success: false, message: err.message || "Upload error" });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: "No image file provided." });
+    }
+
+    const baseUrl = getBaseUrl(req);
+
+    if (req.files.length === 1) {
+      const file = req.files[0];
+      const fileUrl = `${baseUrl}/uploads/${file.filename}`;
+      return res.status(200).json({
+        success: true,
+        message: "Image uploaded successfully",
+        url: fileUrl,
+        urls: [fileUrl],
+        filename: file.filename,
+        size: file.size,
+        mimetype: file.mimetype
       });
     }
-    return handleUploadedFile(req, res);
-  });
-});
-
-// POST /api/upload/multiple - Multiple images upload
-router.post("/multiple", upload.array("images", 10), (req, res) => {
-  try {
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ success: false, message: "No files provided." });
-    }
-
-    const host = req.get("host");
-    const protocol = req.protocol;
 
     const uploaded = req.files.map((file) => ({
-      url: `${protocol}://${host}/uploads/${file.filename}`,
+      url: `${baseUrl}/uploads/${file.filename}`,
       filename: file.filename,
       size: file.size,
       mimetype: file.mimetype
@@ -123,11 +99,62 @@ router.post("/multiple", upload.array("images", 10), (req, res) => {
     return res.status(200).json({
       success: true,
       message: `${uploaded.length} image(s) uploaded successfully`,
+      url: uploaded[0].url,
+      urls: uploaded.map((u) => u.url),
       data: uploaded
     });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: err.message || "Multiple upload failed" });
-  }
+  });
+});
+
+// POST /api/upload/screenshot - Explicit endpoint for payment screenshots
+router.post("/screenshot", (req, res) => {
+  upload.any()(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message || "Screenshot upload failed" });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: "No screenshot file provided." });
+    }
+    const baseUrl = getBaseUrl(req);
+    const file = req.files[0];
+    const fileUrl = `${baseUrl}/uploads/${file.filename}`;
+    return res.status(200).json({
+      success: true,
+      message: "Screenshot uploaded successfully",
+      url: fileUrl,
+      filename: file.filename,
+      size: file.size,
+      mimetype: file.mimetype
+    });
+  });
+});
+
+// POST /api/upload/multiple - Multiple images upload
+router.post("/multiple", (req, res) => {
+  upload.any()(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message || "Multiple upload failed" });
+    }
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ success: false, message: "No files provided." });
+    }
+
+    const baseUrl = getBaseUrl(req);
+    const uploaded = req.files.map((file) => ({
+      url: `${baseUrl}/uploads/${file.filename}`,
+      filename: file.filename,
+      size: file.size,
+      mimetype: file.mimetype
+    }));
+
+    return res.status(200).json({
+      success: true,
+      message: `${uploaded.length} image(s) uploaded successfully`,
+      url: uploaded[0].url,
+      urls: uploaded.map((u) => u.url),
+      data: uploaded
+    });
+  });
 });
 
 module.exports = router;
